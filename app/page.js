@@ -1,18 +1,34 @@
 "use client";
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
+import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
+
+import markerShadow from "/public/marker-shadow.png";
+
+const customIcon = new L.Icon({
+  iconUrl:
+    "https://tse3.mm.bing.net/th?id=OIP.ks5kH0YpgDUB1Jl9st9o3wHaHa&pid=Api&P=0&h=220",
+  iconRetinaUrl:
+    "https://tse3.mm.bing.net/th?id=OIP.ks5kH0YpgDUB1Jl9st9o3wHaHa&pid=Api&P=0&h=220",
+  shadowUrl: markerShadow,
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41],
+});
 
 export default function Home() {
-  const [location, setLocation] = useState({ lat: null, lng: null });
-  const [address, setAddress] = useState("");
+  const [location, setLocation] = useState(null); // Initially NULL
+  const [address, setAddress] = useState("Fetching location...");
 
   useEffect(() => {
     if (navigator.geolocation) {
-      navigator.geolocation.watchPosition(
+      navigator.geolocation.getCurrentPosition(
         async (position) => {
           const { latitude, longitude } = position.coords;
           setLocation({ lat: latitude, lng: longitude });
 
-          // Fetch address from latitude & longitude
           try {
             const response = await fetch(
               `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`
@@ -23,114 +39,98 @@ export default function Home() {
             console.error("Error fetching location:", error);
           }
         },
-        (error) => console.error(error),
+        (error) => {
+          console.error("Error getting geolocation:", error);
+          setAddress("Location access denied");
+        },
         { enableHighAccuracy: true }
       );
+    } else {
+      setAddress("Geolocation is not supported in this browser.");
     }
   }, []);
 
+  if (!location) {
+    return (
+      <p style={{ textAlign: "center", marginTop: "20px" }}>
+        Fetching your location...
+      </p>
+    );
+  }
+
   return (
-    <div>
+    <div style={{ textAlign: "center" }}>
       <h1>Real-Time Location Tracking</h1>
       <p>Latitude: {location.lat}</p>
       <p>Longitude: {location.lng}</p>
-      <p><strong>Address:</strong> {address}</p>
+      <p>
+        <strong>Address:</strong> {address}
+      </p>
+
+      {/* Map Container */}
+      <MapContainer
+        center={[location.lat, location.lng]}
+        zoom={13}
+        style={{
+          height: "400px",
+          width: "400px",
+          margin: "auto",
+          marginTop: "30px",
+        }}
+      >
+        <TileLayer
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution='&copy; <a href="https://www.cartocdn.org/copyright">cartocdn</a> contributors'
+        />
+        <Marker position={[location.lat, location.lng]} icon={customIcon}>
+          <Popup>
+            <strong>Your Location</strong>
+            <br />
+            {address}
+          </Popup>
+        </Marker>
+      </MapContainer>
     </div>
   );
 }
 
-// import Image from "next/image";
-// import styles from "./page.module.css";
+// "use client";
+// import { useEffect, useState } from "react";
 
 // export default function Home() {
-//   return (
-//     <div className={styles.page}>
-//       <main className={styles.main}>
-//         <Image
-//           className={styles.logo}
-//           src="/next.svg"
-//           alt="Next.js logo"
-//           width={180}
-//           height={38}
-//           priority
-//         />
-//         <ol>
-//           <li>
-//             Get started by editing <code>app/page.js</code>.
-//           </li>
-//           <li>Save and see your changes instantly.</li>
-//         </ol>
+//   const [location, setLocation] = useState({ lat: null, lng: null });
+//   const [address, setAddress] = useState("");
 
-//         <div className={styles.ctas}>
-//           <a
-//             className={styles.primary}
-//             href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-//             target="_blank"
-//             rel="noopener noreferrer"
-//           >
-//             <Image
-//               className={styles.logo}
-//               src="/vercel.svg"
-//               alt="Vercel logomark"
-//               width={20}
-//               height={20}
-//             />
-//             Deploy now
-//           </a>
-//           <a
-//             href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-//             target="_blank"
-//             rel="noopener noreferrer"
-//             className={styles.secondary}
-//           >
-//             Read our docs
-//           </a>
-//         </div>
-//       </main>
-//       <footer className={styles.footer}>
-//         <a
-//           href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-//           target="_blank"
-//           rel="noopener noreferrer"
-//         >
-//           <Image
-//             aria-hidden
-//             src="/file.svg"
-//             alt="File icon"
-//             width={16}
-//             height={16}
-//           />
-//           Learn
-//         </a>
-//         <a
-//           href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-//           target="_blank"
-//           rel="noopener noreferrer"
-//         >
-//           <Image
-//             aria-hidden
-//             src="/window.svg"
-//             alt="Window icon"
-//             width={16}
-//             height={16}
-//           />
-//           Examples
-//         </a>
-//         <a
-//           href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-//           target="_blank"
-//           rel="noopener noreferrer"
-//         >
-//           <Image
-//             aria-hidden
-//             src="/globe.svg"
-//             alt="Globe icon"
-//             width={16}
-//             height={16}
-//           />
-//           Go to nextjs.org →
-//         </a>
-//       </footer>
+//   useEffect(() => {
+//     if (navigator.geolocation) {
+//       navigator.geolocation.watchPosition(
+//         async (position) => {
+//           const { latitude, longitude } = position.coords;
+//           setLocation({ lat: latitude, lng: longitude });
+
+//           // Fetch address from latitude & longitude
+//           try {
+//             const response = await fetch(
+//               `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`
+//             );
+//             const data = await response.json();
+//             setAddress(data.display_name || "Location not found");
+//           } catch (error) {
+//             console.error("Error fetching location:", error);
+//           }
+//         },
+//         (error) => console.error(error),
+//         { enableHighAccuracy: true }
+//       );
+//     }
+//   }, []);
+
+//   return (
+//     <div>
+//       <h1>Real-Time Location Tracking</h1>
+//       <p>Latitude: {location.lat}</p>
+//       <p>Longitude: {location.lng}</p>
+//       <p><strong>Address:</strong> {address}</p>
 //     </div>
 //   );
 // }
