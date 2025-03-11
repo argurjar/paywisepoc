@@ -3,17 +3,27 @@ import { useEffect, useState } from "react";
 
 export default function Home() {
   const [location, setLocation] = useState({ lat: null, lng: null });
+  const [address, setAddress] = useState("");
 
   useEffect(() => {
     if (navigator.geolocation) {
       navigator.geolocation.watchPosition(
-        (position) => {
+        async (position) => {
           const { latitude, longitude } = position.coords;
-
-          console.log(latitude,longitude)
           setLocation({ lat: latitude, lng: longitude });
+
+          // Fetch address from latitude & longitude
+          try {
+            const response = await fetch(
+              `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`
+            );
+            const data = await response.json();
+            setAddress(data.display_name || "Location not found");
+          } catch (error) {
+            console.error("Error fetching location:", error);
+          }
         },
-        (error) => console?.error(error),
+        (error) => console.error(error),
         { enableHighAccuracy: true }
       );
     }
@@ -24,7 +34,7 @@ export default function Home() {
       <h1>Real-Time Location Tracking</h1>
       <p>Latitude: {location.lat}</p>
       <p>Longitude: {location.lng}</p>
-         
+      <p><strong>Address:</strong> {address}</p>
     </div>
   );
 }
