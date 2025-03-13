@@ -1,95 +1,40 @@
+// // Step 5: Home Page with Worker Setup (app/page.js)
 // "use client";
-// import React, { useEffect, useState } from "react";
-// import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
-// import L from "leaflet";
-// import "leaflet/dist/leaflet.css";
-
-// import markerShadow from "/public/marker-shadow.png";
-
-// const customIcon = new L.Icon({
-//   iconUrl:
-//     "https://tse3.mm.bing.net/th?id=OIP.ks5kH0YpgDUB1Jl9st9o3wHaHa&pid=Api&P=0&h=220",
-//   iconRetinaUrl:
-//     "https://tse3.mm.bing.net/th?id=OIP.ks5kH0YpgDUB1Jl9st9o3wHaHa&pid=Api&P=0&h=220",
-//   shadowUrl: markerShadow,
-//   iconSize: [25, 41],
-//   iconAnchor: [12, 41],
-//   popupAnchor: [1, -34],
-//   shadowSize: [41, 41],
-// });
+// import { useEffect, useState } from "react";
 
 // export default function Home() {
-//   const [location, setLocation] = useState(null); // Initially NULL
-//   const [address, setAddress] = useState("Fetching location...");
+//   const [location, setLocation] = useState(null);
 
 //   useEffect(() => {
-//     if (navigator.geolocation) {
-//       navigator.geolocation.getCurrentPosition(
-//         async (position) => {
-//           const { latitude, longitude } = position.coords;
-//           setLocation({ lat: latitude, lng: longitude });
+//     const worker = new Worker("/locationWorker.js");
+//     worker.postMessage("startTracking");
 
-//           try {
-//             const response = await fetch(
-//               `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`
-//             );
-//             const data = await response.json();
-//             setAddress(data.display_name || "Location not found");
-//           } catch (error) {
-//             console.error("Error fetching location:", error);
+//     worker.onmessage = (event) => {
+//       if (event.data.type === "location") {
+//         console.log("Received location", event.data.payload);
+//         setLocation(event.data.payload);
+//         fetch(
+//           "https://surprising-proceeding-shaved-polar.trycloudflare.com/api/update-location",
+//           {
+//             method: "POST",
+//             headers: { "Content-Type": "application/json" },
+//             body: JSON.stringify(event.data.payload),
 //           }
-//         },
-//         (error) => {
-//           console.error("Error getting geolocation:", error);
-//           setAddress("Location access denied");
-//         },
-//         { enableHighAccuracy: true }
-//       );
-//     } else {
-//       setAddress("Geolocation is not supported in this browser.");
-//     }
+//         );
+//       }
+//     };
 //   }, []);
 
-//   if (!location) {
-//     return (
-//       <p style={{ textAlign: "center", marginTop: "20px" }}>
-//         Fetching your location...
-//       </p>
-//     );
-//   }
-
 //   return (
-//     <div style={{ textAlign: "center" }}>
-//       <h1>Real-Time Location Tracking</h1>
-//       <p>Latitude: {location.lat}</p>
-//       <p>Longitude: {location.lng}</p>
-//       <p>
-//         <strong>Address:</strong> {address}
-//       </p>
-
-//       {/* Map Container */}
-//       <MapContainer
-//         center={[location.lat, location.lng]}
-//         zoom={13}
-//         style={{
-//           height: "400px",
-//           width: "400px",
-//           margin: "auto",
-//           marginTop: "30px",
-//         }}
-//       >
-//         <TileLayer
-//           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-//           attribution='&copy; <a href="https://www.cartocdn.org/copyright">cartocdn</a> contributors'
-//         />
-//         <Marker position={[location.lat, location.lng]} icon={customIcon}>
-//           <Popup>
-//             <strong>Your Location</strong>
-//             <br />
-//             {address}
-//           </Popup>
-//         </Marker>
-//       </MapContainer>
+//     <div>
+//       <h1>PWA Location Tracking</h1>
+//       {location ? (
+//         <p>
+//           Latitude: {location.latitude}, Longitude: {location.longitude}
+//         </p>
+//       ) : (
+//         <p>Fetching location...</p>
+//       )}
 //     </div>
 //   );
 // }
@@ -98,39 +43,57 @@
 import { useEffect, useState } from "react";
 
 export default function Home() {
-  const [location, setLocation] = useState({ lat: null, lng: null });
-  const [address, setAddress] = useState("");
+  const [location, setLocation] = useState(null);
+  let worker;
 
   useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.watchPosition(
-        async (position) => {
-          const { latitude, longitude } = position.coords;
-          setLocation({ lat: latitude, lng: longitude });
+    if ("Worker" in window) {
+      worker = new Worker("/locationWorker.js");
 
-          // Fetch address from latitude & longitude
-          try {
-            const response = await fetch(
-              `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`
-            );
-            const data = await response.json();
-            setAddress(data.display_name || "Location not found");
-          } catch (error) {
-            console.error("Error fetching location:", error);
+      worker.onmessage = (event) => {
+        if (event.data.type === "location") {
+          console.log("Received location", event.data.payload);
+          setLocation(event.data.payload);
+
+          fetch("https://surprising-proceeding-shaved-polar.trycloudflare.com/api/update-location", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(event.data.payload),
+          });
+        }
+      };
+    }
+
+    if ("geolocation" in navigator) {
+      navigator.geolocation.watchPosition(
+        (position) => {
+          const coords = {
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+          };
+
+          if (worker) {
+            worker.postMessage({ type: "startTracking", coords });
           }
         },
-        (error) => console.error(error),
-        { enableHighAccuracy: true }
+        (error) => console.error("Geolocation Error:", error),
+        { enableHighAccuracy: true, maximumAge: 0, timeout: 5000 }
       );
+    } else {
+      console.error("Geolocation not available");
     }
   }, []);
 
   return (
     <div>
-      <h1>Real-Time Location Tracking</h1>
-      <p>Latitude: {location.lat}</p>
-      <p>Longitude: {location.lng}</p>
-      <p><strong>Address:</strong> {address}</p>
+      <h1>PWA Location Tracking</h1>
+      {location ? (
+        <p>
+          Latitude: {location.latitude}, Longitude: {location.longitude}
+        </p>
+      ) : (
+        <p>Fetching location...</p>
+      )}
     </div>
   );
 }
